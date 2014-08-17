@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:jee="http://www.springframework.org/schema/jee"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:amq="http://activemq.apache.org/schema/core"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-3.0.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+     http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core-5.2.0.xsd"
+	default-lazy-init="true">
+
+	<!-- 配置ActiveMQ Broker,自动启动 -->
+	<amq:broker useJmx="false" persistent="false">
+		<amq:destinations>
+			<amq:queue id="jms.log" physicalName="pams.amq" />
+		</amq:destinations>
+		<amq:transportConnectors>
+			<amq:transportConnector uri="tcp://localhost:61616" />
+		</amq:transportConnectors>
+	</amq:broker>
+	 
+	<!-- 配置ConnectionFactory,连接地址 -->
+	<amq:connectionFactory id="jmsConnectionFactory" brokerURL="tcp://localhost:61616" />
+
+	<!-- 配置Queue -->
+	<amq:queue name="destination" physicalName="pams.amq" />
+
+	<!-- 用Spring的线程池 -->
+	<bean id="threadPoolExecutor"
+		class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+		<!-- <property name="threadFactory" ref="threadFactory" /> -->
+		<property name="corePoolSize" value="2" />
+		<property name="maxPoolSize" value="4" />
+		<property name="queueCapacity" value="500" />
+		<property name="keepAliveSeconds" value="300" />
+	</bean>
+	
+	<!-- JMS ActiveMQ Config，配制消息发送模板 -->
+    <bean id="jmsTemplate"
+		class="org.springframework.jms.core.JmsTemplate">
+		<property name="connectionFactory">
+			<bean
+				class="org.springframework.jms.connection.SingleConnectionFactory">
+				<property name="targetConnectionFactory"
+					ref="jmsConnectionFactory" />
+			</bean>
+		</property>
+		<property name="messageConverter"
+			ref="resourceMessageConverter" />
+	</bean>
+    
+    <!-- 消息转换器 -->
+    <bean id="resourceMessageConverter" class="com.appleframe.dbexchange.mq.ResourceMessageConverter" />
+    	
+    <!-- 消息生产者 -->
+    <bean id="resourceMessageProducer"
+    	class="com.appleframe.dbexchange.mq.ResourceMessageProducer" >
+    	<property name="template">
+    		<ref bean="jmsTemplate"></ref>
+    	</property>
+    	<property name="destination">
+    		<ref bean="destination"></ref>
+    	</property>
+    </bean>
+    
+    <!-- 消息接收监听者 -->
+    <bean id="resourceMessageListener"
+		class="org.springframework.jms.listener.adapter.MessageListenerAdapter">
+		<constructor-arg>
+			<ref bean="resourceMessageConsumer"></ref>
+		</constructor-arg>
+		<property name="defaultListenerMethod" value="execute" />
+		<property name="messageConverter"   ref="resourceMessageConverter" />
+	</bean> 
+	
+	<!-- 消息监听容器 -->
+	<bean id="resourcelistenerContainer" 
+		class="org.springframework.jms.listener.SimpleMessageListenerContainer"> 
+		<property name="connectionFactory" ref="jmsConnectionFactory" /> 
+		<property name="autoStartup" value="true"/> 
+		<property name="concurrentConsumers" value="6"/> 
+		<property name="destination" ref="destination"/> 
+		<property name="messageListener" ref="resourceMessageListener"/> 
+		<property name="sessionTransacted" value="true"/> 
+		<property name="taskExecutor" ref="threadPoolExecutor"/> 
+	</bean>
+
+	<!-- 消息接收者 -->
+	<bean id="resourceMessageConsumer"
+		class="com.appleframe.dbexchange.mq.ResourceMessageConsumer" abstract="false"
+		lazy-init="default" autowire="default">
+		<property name="threadPoolExecutor">
+			<ref bean="threadPoolExecutor"></ref>
+		</property>
+	</bean>
+</beans>

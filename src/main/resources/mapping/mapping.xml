@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mappings>
+	<mapping stable="s_user" ptable="p_user" ctable="c_user" type="insert">
+		<fields>
+			<field>
+				<pfield name="s_id" type="number" dbType="bigint(8)" primaryKey="true"/>
+				<cfield name="c_id" type="number" dbType="bigint(8)" primaryKey="true"/>
+			</field>
+			<field>
+				<pfield name="s_name" type="string" dbType="varchar(20)" nullable="false"/>
+				<cfield name="c_name" type="string" dbType="varchar(20)" />
+			</field>
+			<field>
+				<pfield name="s_address" type="string" dbType="varchar(200)" />
+				<cfield name="c_address" type="string" dbType="varchar(200)" />
+			</field>
+			<field>
+				<pfield name="s_createtime" type="string" dbType="date" />
+				<cfield name="c_createtime" type="string" dbType="date" />
+			</field>
+		</fields>
+	</mapping>
+</mappings>
